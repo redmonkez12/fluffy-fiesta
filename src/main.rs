@@ -1,5 +1,6 @@
 mod constants;
 mod character;
+mod animate;
 
 use crate::constants::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::*;
@@ -22,10 +23,11 @@ async fn main() {
 
     let idle_texture = load_texture("character/Idle.png").await.unwrap();
     let walk_texture = load_texture("character/Walk.png").await.unwrap();
+    let jump_texture = load_texture("character/Jump.png").await.unwrap();
     idle_texture.set_filter(FilterMode::Nearest);
     walk_texture.set_filter(FilterMode::Nearest);
 
-    let mut character = Character::new(&idle_texture, &walk_texture);
+    let mut character = Character::new(&idle_texture, &walk_texture, &jump_texture);
 
     loop {
         clear_background(BLACK);
