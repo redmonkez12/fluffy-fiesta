@@ -59,19 +59,6 @@ async fn main() {
     let y_offset = SCREEN_HEIGHT - (map_height as f32 * tile_size);
     let mut character = Character::new(&idle_texture, &walk_texture, &jump_texture);
 
-    println!("Tile size: {}", tile_size);
-    println!("Map height: {}", map_height);
-    println!("Y offset: {}", y_offset);
-    println!(
-        "Ground level should be at: {}",
-        y_offset + (map_height - 1) as f32 * tile_size
-    );
-
-    let ground_y = y_offset + (map_height - 1) as f32 * tile_size - character.rect.h;
-    character.rect.y = ground_y;
-    character.on_ground = true;
-    println!("Setting character to ground at y: {}", ground_y);
-
     loop {
         clear_background(BLACK);
 
@@ -84,59 +71,42 @@ async fn main() {
     }
 }
 
-fn check_tilemap_collision(character: &mut Character, tilemap: &Vec<Vec<Option<Texture2D>>>, tile_size: f32, y_offset: f32) {
+fn check_tilemap_collision(
+    character: &mut Character,
+    tilemap: &Vec<Vec<Option<Texture2D>>>,
+    tile_size: f32,
+    y_offset: f32,
+) {
     for (y, row) in tilemap.iter().enumerate() {
         for (x, tile) in row.iter().enumerate() {
-            if let Some(tile) = tile {
-                let pos_x = x as f32 * tile_size;
-                let pos_y = y_offset + y as f32 * tile_size;
-                let texture_rect = Rect::new(pos_x, pos_y, tile_size, tile_size);
-                if character.rect.overlaps(&texture_rect) {
-                    // Get the exact overlapping rectangle
-                    if let Some(intersection) = character.rect.intersect(texture_rect) {
-                        let char_center_x = character.rect.center().x;
-                        let char_center_y = character.rect.center().y;
-                        let tile_center_x = texture_rect.center().x;
-                        let tile_center_y = texture_rect.center().y;
+            if let Some(_tile) = tile {
+                let tile_x = x as f32 * tile_size;
+                let tile_y = y_offset + y as f32 * tile_size;
+                let tile_rect = Rect::new(tile_x, tile_y, tile_size, tile_size);
 
-                        let dx = char_center_x - tile_center_x;
-                        let dy = char_center_y - tile_center_y;
+                if character.rect.overlaps(&tile_rect) {
+                    let from_left = character.rect.right() - tile_rect.left();
+                    let from_right = tile_rect.right() - character.rect.left();
+                    let from_top = character.rect.bottom() - tile_rect.top();
+                    let from_bottom = tile_rect.bottom() - character.rect.top();
 
-                        let horizontal_overlap = intersection.w;
-                        let vertical_overlap = intersection.h;
+                    let min_penetration = from_left
+                        .min(from_right)
+                        .min(from_top)
+                        .min(from_bottom);
 
-                        println!(
-                            "Character velocity - x: {}, y: {}",
-                            character.velocity.x, character.velocity.y
-                        );
-                        println!(
-                            "Overlap - horizontal: {}, vertical: {}",
-                            horizontal_overlap, vertical_overlap
-                        );
-                        println!("Distance from centers - dx: {}, dy: {}", dx, dy);
-
-                        if horizontal_overlap < vertical_overlap {
-                            if dx > 0.0 {
-                                println!("Collision: Character hitting tile from LEFT");
-                                character.rect.x = texture_rect.right();
-                            } else {
-                                println!("Collision: Character hitting tile from RIGHT");
-                                character.rect.x = texture_rect.left() - character.rect.w;
-                            }
-                            character.velocity.x = 0.0;
-                        } else {
-                            if dy > 0.0 && character.velocity.y > 0.0 {
-                                println!("Collision: Character LANDING ON TOP");
-                                character.rect.y = texture_rect.top() - character.rect.h;
-                                character.velocity.y = 0.0;
-                                character.on_ground = true;
-                                character.is_jumping = false;
-                            } else if dy < 0.0 && character.velocity.y < 0.0 {
-                                println!("Collision: Character HITTING FROM BELOW");
-                                character.rect.y = texture_rect.bottom();
-                                character.velocity.y = 0.0;
-                            }
-                        }
+                    if min_penetration == from_left {
+                        character.rect.x = tile_rect.left() - character.rect.w;
+                    } else if min_penetration == from_right {
+                        character.rect.x = tile_rect.right();
+                    } else if min_penetration == from_top {
+                        character.rect.y = tile_rect.top() - character.rect.h;
+                        character.velocity.y = 0.0;
+                        character.on_ground = true;
+                        character.is_jumping = false;
+                    } else if min_penetration == from_bottom {
+                        character.rect.y = tile_rect.bottom();
+                        character.velocity.y = 0.0;
                     }
                 }
             }

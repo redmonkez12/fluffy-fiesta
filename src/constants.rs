@@ -8,4 +8,4 @@ pub const JUMP_FRAME_COUNT: u8 = 8;
 pub const JUMP_FRAME_DURATION: f32 = 0.125;
 pub const PLAYER_SPEED: f32 = 150.0;
 pub const GRAVITY: f32 = 980.0;
-pub const JUMP_POWER: f32 = 400.0;
+pub const JUMP_POWER: f32 = 500.0;

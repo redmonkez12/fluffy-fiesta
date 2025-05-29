@@ -11,6 +11,7 @@ use macroquad::prelude::{get_frame_time, Texture2D};
 enum CharacterState {
     Idle,
     Walk,
+    Jump,
 }
 
 pub struct Character {
@@ -27,7 +28,7 @@ pub struct Character {
 
 impl Character {
     pub fn new(idle_texture: &Texture2D, walk_texture: &Texture2D, jump_texture: &Texture2D) -> Self {
-        let pos_y = SCREEN_HEIGHT - idle_texture.height() - 32.0;
+        let pos_y = SCREEN_HEIGHT - idle_texture.height() * 3.0;
 
         Self {
             direction: CharacterDirection::Right,
@@ -38,60 +39,64 @@ impl Character {
             is_jumping: false,
             on_ground: true,
             velocity: Vec2::new(0.0, 0.0),
-            rect: Rect::new(0.0, pos_y, idle_texture.width(), idle_texture.height()),
+            rect: Rect::new(10.0, pos_y, idle_texture.height(), idle_texture.height()),
         }
     }
 
     pub fn handle_keys(&mut self) {
-        let mut new_pos_x = self.rect.x;
         let dt = get_frame_time();
 
         if is_key_down(KeyCode::Left) {
-            new_pos_x -= PLAYER_SPEED * dt;
+            self.velocity.x = -PLAYER_SPEED;
             self.direction = CharacterDirection::Left;
             self.state = CharacterState::Walk;
         } else if is_key_down(KeyCode::Right) {
-            new_pos_x += PLAYER_SPEED * dt;
+            self.velocity.x = PLAYER_SPEED;
             self.direction = CharacterDirection::Right;
             self.state = CharacterState::Walk;
         } else {
             self.state = CharacterState::Idle;
+            self.velocity.x = 0.0;
         }
 
         if is_key_pressed(KeyCode::Space) && self.on_ground {
+            self.state = CharacterState::Jump;
             self.is_jumping = true;
             self.on_ground = false;
             self.velocity.y = -JUMP_POWER;
         }
 
-        self.velocity.y += GRAVITY * dt; // v = v0 + a⋅t
+        self.velocity.y += GRAVITY * dt;
 
-        let mut new_pos_y = self.rect.y + self.velocity.y * dt; // y = y0 + v⋅t
+        let mut new_pos_x = self.rect.x + self.velocity.x * dt;
+        let mut new_pos_y = self.rect.y + self.velocity.y * dt;
 
         let current_frame_width = match self.state {
             CharacterState::Idle => self.animate_idle.frame_size.x,
             CharacterState::Walk => self.animate_walk.frame_size.x,
+            CharacterState::Jump => self.animate_jump.frame_size.x,
         };
 
         let current_frame_height = match self.state {
             CharacterState::Idle => self.animate_idle.frame_size.y,
             CharacterState::Walk => self.animate_walk.frame_size.y,
+            CharacterState::Jump => self.animate_jump.frame_size.y,
         };
 
         if new_pos_x >= 0.0 && new_pos_x + current_frame_width <= SCREEN_WIDTH {
             self.rect.x = new_pos_x;
         }
 
-        if new_pos_y + current_frame_height >= SCREEN_HEIGHT - 32.0 {
-            new_pos_y = SCREEN_HEIGHT - current_frame_height - 32.0 ;
+        if new_pos_y + current_frame_height >= SCREEN_HEIGHT {
+            new_pos_y = SCREEN_HEIGHT - current_frame_height;
             self.velocity.y = 0.0;
             self.is_jumping = false;
+            self.state = CharacterState::Idle;
             self.on_ground = true;
         }
 
         self.rect.y = new_pos_y;
     }
-
 
     pub fn update(&mut self) {
         let dt = get_frame_time();
