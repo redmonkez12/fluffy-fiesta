@@ -33,26 +33,42 @@ async fn main() {
         vec![None; 25],
         vec![None; 25],
         vec![None; 25],
-        vec![None; 25],
-        vec![None; 25],
         {
             let mut row = vec![None; 25];
-            row[7] = Some(grass.clone());
-            row[8] = Some(grass.clone());
+            row[10] = Some(grass.clone());
+            row[11] = Some(grass.clone());
+            row[12] = Some(grass.clone());
             row
         },
         vec![None; 25],
         {
             let mut row = vec![None; 25];
+            row[3] = Some(grass.clone());
             row[4] = Some(grass.clone());
-            row[5] = Some(grass.clone());
             row[6] = Some(grass.clone());
             row[7] = Some(grass.clone());
             row
         },
         vec![None; 25],
+        {
+            let mut row = vec![None; 25];
+            for i in 8..15 {
+                if i != 12 {
+                    row[i] = Some(grass.clone());
+                }
+            }
+            row
+        },
+        {
+            let mut row = vec![None; 25];
+            row[2] = Some(grass.clone());
+            row[17] = Some(grass.clone());
+            row[22] = Some(grass.clone());
+            row
+        },
         vec![Some(grass.clone()); 25],
     ];
+
 
     let tile_size = grass.height();
     let map_height = tilemap.len();
@@ -77,6 +93,14 @@ fn check_tilemap_collision(
     tile_size: f32,
     y_offset: f32,
 ) {
+    let collision_shrink = 4.0;
+    let collision_rect = Rect::new(
+        character.rect.x + collision_shrink,
+        character.rect.y + collision_shrink,
+        character.rect.w - (collision_shrink * 2.0),
+        character.rect.h - (collision_shrink * 2.0),
+    );
+    
     for (y, row) in tilemap.iter().enumerate() {
         for (x, tile) in row.iter().enumerate() {
             if let Some(_tile) = tile {
@@ -84,28 +108,28 @@ fn check_tilemap_collision(
                 let tile_y = y_offset + y as f32 * tile_size;
                 let tile_rect = Rect::new(tile_x, tile_y, tile_size, tile_size);
 
-                if character.rect.overlaps(&tile_rect) {
-                    let from_left = character.rect.right() - tile_rect.left();
-                    let from_right = tile_rect.right() - character.rect.left();
-                    let from_top = character.rect.bottom() - tile_rect.top();
-                    let from_bottom = tile_rect.bottom() - character.rect.top();
+                if collision_rect.overlaps(&tile_rect) {
+                    let from_left = collision_rect.right() - 5.0 - tile_rect.left();
+                    let from_right = tile_rect.right() - collision_rect.left() - 5.0;
+                    let from_top = collision_rect.bottom() - 5.0 - tile_rect.top();
+                    let from_bottom = tile_rect.bottom() - collision_rect.top() + 5.0;
 
-                    let min_penetration = from_left
+                    let min_value = from_left
                         .min(from_right)
                         .min(from_top)
                         .min(from_bottom);
-
-                    if min_penetration == from_left {
-                        character.rect.x = tile_rect.left() - character.rect.w;
-                    } else if min_penetration == from_right {
-                        character.rect.x = tile_rect.right();
-                    } else if min_penetration == from_top {
-                        character.rect.y = tile_rect.top() - character.rect.h;
+                    
+                    if min_value == from_left {
+                        character.rect.x = tile_rect.left() - character.rect.w + collision_shrink;
+                    } else if min_value == from_right {
+                        character.rect.x = tile_rect.right() - collision_shrink;
+                    } else if min_value == from_top {
+                        character.rect.y = tile_rect.top() - character.rect.h + collision_shrink;
                         character.velocity.y = 0.0;
                         character.on_ground = true;
                         character.is_jumping = false;
-                    } else if min_penetration == from_bottom {
-                        character.rect.y = tile_rect.bottom();
+                    } else if min_value == from_bottom {
+                        character.rect.y = tile_rect.bottom() - collision_shrink;
                         character.velocity.y = 0.0;
                     }
                 }

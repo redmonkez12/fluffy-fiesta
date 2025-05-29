@@ -30,6 +30,9 @@ impl Character {
     pub fn new(idle_texture: &Texture2D, walk_texture: &Texture2D, jump_texture: &Texture2D) -> Self {
         let pos_y = SCREEN_HEIGHT - idle_texture.height() * 3.0;
 
+        let width = idle_texture.height();
+        let height = idle_texture.height();
+        
         Self {
             direction: CharacterDirection::Right,
             state: CharacterState::Idle,
