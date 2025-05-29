@@ -1,9 +1,11 @@
 use crate::animate::{Animate, CharacterDirection};
-use crate::constants::{GRAVITY, IDLE_FRAME_COUNT, IDLE_FRAME_DURATION, JUMP_FRAME_COUNT, JUMP_FRAME_DURATION, JUMP_POWER, PLAYER_SPEED, SCREEN_HEIGHT, SCREEN_WIDTH, WALK_FRAME_COUNT, WALK_FRAME_DURATION};
-use macroquad::input::{KeyCode, is_key_down, is_key_pressed};
+use crate::constants::{
+    GRAVITY, IDLE_FRAME_COUNT, IDLE_FRAME_DURATION, JUMP_FRAME_COUNT, JUMP_FRAME_DURATION,
+    JUMP_POWER, PLAYER_SPEED, SCREEN_HEIGHT, SCREEN_WIDTH, WALK_FRAME_COUNT, WALK_FRAME_DURATION,
+};
+use macroquad::input::{is_key_down, is_key_pressed, KeyCode};
 use macroquad::math::{Rect, Vec2};
-use macroquad::prelude::get_frame_time;
-use macroquad::texture::Texture2D;
+use macroquad::prelude::{get_frame_time, Texture2D};
 
 #[derive(PartialEq)]
 enum CharacterState {
@@ -17,7 +19,7 @@ pub struct Character {
     pub animate_idle: Animate,
     pub animate_walk: Animate,
     pub animate_jump: Animate,
-    pub jump_vec: Vec2,
+    pub velocity: Vec2,
     pub rect: Rect,
     direction: CharacterDirection,
     state: CharacterState,
@@ -26,16 +28,16 @@ pub struct Character {
 impl Character {
     pub fn new(idle_texture: &Texture2D, walk_texture: &Texture2D, jump_texture: &Texture2D) -> Self {
         let pos_y = SCREEN_HEIGHT - idle_texture.height() - 32.0;
-        
+
         Self {
             direction: CharacterDirection::Right,
             state: CharacterState::Idle,
-            animate_idle: Animate::new(&idle_texture, IDLE_FRAME_COUNT, IDLE_FRAME_DURATION),
-            animate_walk: Animate::new(&walk_texture, WALK_FRAME_COUNT, WALK_FRAME_DURATION),
-            animate_jump: Animate::new(&jump_texture, JUMP_FRAME_COUNT, JUMP_FRAME_DURATION),
+            animate_idle: Animate::new(idle_texture, IDLE_FRAME_COUNT, IDLE_FRAME_DURATION),
+            animate_walk: Animate::new(walk_texture, WALK_FRAME_COUNT, WALK_FRAME_DURATION),
+            animate_jump: Animate::new(jump_texture, JUMP_FRAME_COUNT, JUMP_FRAME_DURATION),
             is_jumping: false,
-            on_ground: false,
-            jump_vec: Vec2::new(0.0, 0.0),
+            on_ground: true,
+            velocity: Vec2::new(0.0, 0.0),
             rect: Rect::new(0.0, pos_y, idle_texture.width(), idle_texture.height()),
         }
     }
@@ -59,12 +61,12 @@ impl Character {
         if is_key_pressed(KeyCode::Space) && self.on_ground {
             self.is_jumping = true;
             self.on_ground = false;
-            self.jump_vec.y = -JUMP_POWER;
+            self.velocity.y = -JUMP_POWER;
         }
 
-        self.jump_vec.y += GRAVITY * dt; // v = v0 + a⋅t
+        self.velocity.y += GRAVITY * dt; // v = v0 + a⋅t
 
-        let mut new_pos_y = self.rect.y + self.jump_vec.y * dt; // y = y0 + v⋅t
+        let mut new_pos_y = self.rect.y + self.velocity.y * dt; // y = y0 + v⋅t
 
         let current_frame_width = match self.state {
             CharacterState::Idle => self.animate_idle.frame_size.x,
@@ -82,13 +84,14 @@ impl Character {
 
         if new_pos_y + current_frame_height >= SCREEN_HEIGHT - 32.0 {
             new_pos_y = SCREEN_HEIGHT - current_frame_height - 32.0 ;
-            self.jump_vec.y = 0.0;
+            self.velocity.y = 0.0;
             self.is_jumping = false;
             self.on_ground = true;
         }
 
         self.rect.y = new_pos_y;
     }
+
 
     pub fn update(&mut self) {
         let dt = get_frame_time();
