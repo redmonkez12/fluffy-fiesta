@@ -3,9 +3,10 @@ use crate::constants::{
     GRAVITY, IDLE_FRAME_COUNT, IDLE_FRAME_DURATION, JUMP_FRAME_COUNT, JUMP_FRAME_DURATION,
     JUMP_POWER, PLAYER_SPEED, SCREEN_HEIGHT, SCREEN_WIDTH, WALK_FRAME_COUNT, WALK_FRAME_DURATION,
 };
-use macroquad::input::{is_key_down, is_key_pressed, KeyCode};
+use macroquad::input::{is_key_down, is_key_pressed, mouse_position, KeyCode, MouseButton};
 use macroquad::math::{Rect, Vec2};
-use macroquad::prelude::{get_frame_time, Texture2D};
+use macroquad::prelude::{get_frame_time, is_mouse_button_pressed, Texture2D};
+use crate::arrow::Arrow;
 
 #[derive(PartialEq)]
 enum CharacterState {
@@ -22,12 +23,14 @@ pub struct Character {
     pub animate_jump: Animate,
     pub velocity: Vec2,
     pub rect: Rect,
+    pub arrows: Vec<Arrow>,
+    pub arrow_texture: Texture2D,
     direction: CharacterDirection,
     state: CharacterState,
 }
 
 impl Character {
-    pub fn new(idle_texture: &Texture2D, walk_texture: &Texture2D, jump_texture: &Texture2D) -> Self {
+    pub fn new(idle_texture: &Texture2D, walk_texture: &Texture2D, jump_texture: &Texture2D, arrow_texture: &Texture2D) -> Self {
         let pos_y = SCREEN_HEIGHT - idle_texture.height() * 3.0;
 
         let width = idle_texture.height();
@@ -43,6 +46,8 @@ impl Character {
             on_ground: true,
             velocity: Vec2::new(0.0, 0.0),
             rect: Rect::new(10.0, pos_y, idle_texture.height(), idle_texture.height()),
+            arrows: Vec::new(),
+            arrow_texture: arrow_texture.clone(),
         }
     }
 
@@ -67,6 +72,10 @@ impl Character {
             self.is_jumping = true;
             self.on_ground = false;
             self.velocity.y = -JUMP_POWER;
+        }
+
+        if is_mouse_button_pressed(MouseButton::Left) {
+            self.attack();
         }
 
         self.velocity.y += GRAVITY * dt;
@@ -127,4 +136,18 @@ impl Character {
                 .draw(Vec2::new(self.rect.x, self.rect.y), &self.direction);
         }
     }
+
+    fn attack(&mut self) {
+        let mouse = Vec2::from(mouse_position());
+
+        let start = Vec2::new(self.rect.center().x, self.rect.center().y);
+        let direction = (mouse - start).normalize();
+        let speed = 400.0;
+
+        let velocity = direction * speed;
+
+        let arrow = Arrow::new(start, velocity, self.arrow_texture.clone());
+        self.arrows.push(arrow);
+    }
+
 }

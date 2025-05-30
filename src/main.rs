@@ -2,11 +2,13 @@ mod animate;
 mod arrow;
 mod character;
 mod constants;
+mod map;
 
 use crate::character::Character;
 use crate::constants::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::*;
-use std::f32::consts::PI;
+use crate::arrow::Arrow;
+use crate::map::create_map;
 
 fn window_conf() -> Conf {
     Conf {
@@ -25,75 +27,32 @@ async fn main() {
     let idle_texture = load_texture("character/Idle.png").await.unwrap();
     let walk_texture = load_texture("character/Walk.png").await.unwrap();
     let jump_texture = load_texture("character/Jump.png").await.unwrap();
-    let grass = load_texture("map/tiles/Tile_51.png").await.unwrap();
+    let grass_texture = load_texture("map/tiles/Tile_51.png").await.unwrap();
     let arrow_texture = load_texture("arrow.png").await.unwrap();
-    let center = vec2(screen_width() / 2.0, screen_height() / 2.0);
 
 
     idle_texture.set_filter(FilterMode::Nearest);
     walk_texture.set_filter(FilterMode::Nearest);
     jump_texture.set_filter(FilterMode::Nearest);
-    grass.set_filter(FilterMode::Nearest);
+    grass_texture.set_filter(FilterMode::Nearest);
+    
+    let tilemap = create_map(&grass_texture);
 
-    let tilemap: Vec<Vec<Option<Texture2D>>> = vec![
-        vec![None; 25],
-        vec![None; 25],
-        vec![None; 25],
-        {
-            let mut row = vec![None; 25];
-            row[10] = Some(grass.clone());
-            row[11] = Some(grass.clone());
-            row[12] = Some(grass.clone());
-            row
-        },
-        vec![None; 25],
-        {
-            let mut row = vec![None; 25];
-            row[3] = Some(grass.clone());
-            row[4] = Some(grass.clone());
-            row[6] = Some(grass.clone());
-            row[7] = Some(grass.clone());
-            row
-        },
-        vec![None; 25],
-        {
-            let mut row = vec![None; 25];
-            for i in 8..15 {
-                if i != 12 {
-                    row[i] = Some(grass.clone());
-                }
-            }
-            row
-        },
-        {
-            let mut row = vec![None; 25];
-            row[2] = Some(grass.clone());
-            row[17] = Some(grass.clone());
-            row[22] = Some(grass.clone());
-            row
-        },
-        vec![Some(grass.clone()); 25],
-    ];
-
-    let tile_size = grass.height();
+    let tile_size = grass_texture.height();
     let map_height = tilemap.len();
     let y_offset = SCREEN_HEIGHT - (map_height as f32 * tile_size);
-    let mut character = Character::new(&idle_texture, &walk_texture, &jump_texture);
+    let mut character = Character::new(&idle_texture, &walk_texture, &jump_texture, &arrow_texture);
 
     loop {
         clear_background(BLACK);
 
-        draw_texture_ex(
-            &arrow_texture, 
-            center.x,
-            center.y,
-            WHITE,
-            DrawTextureParams {
-                rotation: PI / 3.5,
-                dest_size: Some(vec2(16.0, 16.0)),
-                ..Default::default()
-            },
-        );
+        let dt = get_frame_time() ;
+        
+        for arrow in character.arrows.iter_mut() {
+            arrow.update(dt);
+            arrow.draw();   
+        }
+        
         character.handle_keys();
         check_tilemap_collision(&mut character, &tilemap, tile_size, y_offset);
         character.update();
