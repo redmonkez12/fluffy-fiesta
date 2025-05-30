@@ -1,10 +1,12 @@
 mod animate;
+mod arrow;
 mod character;
 mod constants;
 
 use crate::character::Character;
 use crate::constants::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::*;
+use std::f32::consts::PI;
 
 fn window_conf() -> Conf {
     Conf {
@@ -15,6 +17,7 @@ fn window_conf() -> Conf {
     }
 }
 
+
 #[macroquad::main(window_conf)]
 async fn main() {
     set_pc_assets_folder("src/assets");
@@ -23,6 +26,9 @@ async fn main() {
     let walk_texture = load_texture("character/Walk.png").await.unwrap();
     let jump_texture = load_texture("character/Jump.png").await.unwrap();
     let grass = load_texture("map/tiles/Tile_51.png").await.unwrap();
+    let arrow_texture = load_texture("arrow.png").await.unwrap();
+    let center = vec2(screen_width() / 2.0, screen_height() / 2.0);
+
 
     idle_texture.set_filter(FilterMode::Nearest);
     walk_texture.set_filter(FilterMode::Nearest);
@@ -69,7 +75,6 @@ async fn main() {
         vec![Some(grass.clone()); 25],
     ];
 
-
     let tile_size = grass.height();
     let map_height = tilemap.len();
     let y_offset = SCREEN_HEIGHT - (map_height as f32 * tile_size);
@@ -78,6 +83,17 @@ async fn main() {
     loop {
         clear_background(BLACK);
 
+        draw_texture_ex(
+            &arrow_texture, 
+            center.x,
+            center.y,
+            WHITE,
+            DrawTextureParams {
+                rotation: PI / 3.5,
+                dest_size: Some(vec2(16.0, 16.0)),
+                ..Default::default()
+            },
+        );
         character.handle_keys();
         check_tilemap_collision(&mut character, &tilemap, tile_size, y_offset);
         character.update();
@@ -100,7 +116,7 @@ fn check_tilemap_collision(
         character.rect.w - (collision_shrink * 2.0),
         character.rect.h - (collision_shrink * 2.0),
     );
-    
+
     for (y, row) in tilemap.iter().enumerate() {
         for (x, tile) in row.iter().enumerate() {
             if let Some(_tile) = tile {
@@ -109,16 +125,13 @@ fn check_tilemap_collision(
                 let tile_rect = Rect::new(tile_x, tile_y, tile_size, tile_size);
 
                 if collision_rect.overlaps(&tile_rect) {
-                    let from_left = collision_rect.right() - 5.0 - tile_rect.left();
-                    let from_right = tile_rect.right() - collision_rect.left() - 5.0;
-                    let from_top = collision_rect.bottom() - 5.0 - tile_rect.top();
-                    let from_bottom = tile_rect.bottom() - collision_rect.top() + 5.0;
+                    let from_left = collision_rect.right() - tile_rect.left();
+                    let from_right = tile_rect.right() - collision_rect.left();
+                    let from_top = collision_rect.bottom() - tile_rect.top();
+                    let from_bottom = tile_rect.bottom() - collision_rect.top();
 
-                    let min_value = from_left
-                        .min(from_right)
-                        .min(from_top)
-                        .min(from_bottom);
-                    
+                    let min_value = from_left.min(from_right).min(from_top).min(from_bottom);
+
                     if min_value == from_left {
                         character.rect.x = tile_rect.left() - character.rect.w + collision_shrink;
                     } else if min_value == from_right {
@@ -129,7 +142,7 @@ fn check_tilemap_collision(
                         character.on_ground = true;
                         character.is_jumping = false;
                     } else if min_value == from_bottom {
-                        character.rect.y = tile_rect.bottom() - collision_shrink;
+                        character.rect.y = tile_rect.bottom();
                         character.velocity.y = 0.0;
                     }
                 }
