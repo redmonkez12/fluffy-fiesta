@@ -16,6 +16,8 @@ pub struct Animate {
     frame_time: f32,
     timer: f32,
     pub debug_mode: bool,
+    pub looping: bool,          // Whether animation should loop
+    finished: bool,         // Whether animation has completed
 }
 
 impl Animate {
@@ -31,18 +33,73 @@ impl Animate {
             timer: 0.0,
             frame_size: Vec2::new(frame_width, frame_height),
             debug_mode: false,
+            looping: true,      // Default to looping
+            finished: false,
         }
     }
 
+    // Create a non-looping animation (useful for hit/death animations)
+    pub fn new_once(texture: &Texture2D, total_frames: u8, frame_time: f32) -> Self {
+        let mut animate = Self::new(texture, total_frames, frame_time);
+        animate.looping = false;
+        animate
+    }
+
     pub fn update(&mut self, dt: f32) {
+        // Don't update if animation is finished and not looping
+        if self.finished && !self.looping {
+            return;
+        }
+
         self.timer += dt;
         if self.timer >= self.frame_time {
             self.timer = 0.0;
             self.current_frame += 1;
+
             if self.current_frame >= self.total_frames {
-                self.current_frame = 0;
+                if self.looping {
+                    self.current_frame = 0;
+                } else {
+                    self.current_frame = self.total_frames - 1; // Stay on last frame
+                    self.finished = true;
+                }
             }
         }
+    }
+
+    // Check if animation has completed (for non-looping animations)
+    pub fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    // Reset animation to start
+    pub fn reset(&mut self) {
+        self.current_frame = 0;
+        self.timer = 0.0;
+        self.finished = false;
+    }
+
+    // Set whether animation should loop
+    pub fn set_looping(&mut self, looping: bool) {
+        self.looping = looping;
+        if looping {
+            self.finished = false; // Re-enable if switching back to looping
+        }
+    }
+
+    // Get current frame number
+    pub fn get_current_frame(&self) -> u8 {
+        self.current_frame
+    }
+
+    // Get total frames
+    pub fn get_total_frames(&self) -> u8 {
+        self.total_frames
+    }
+
+    // Check if animation is looping
+    pub fn is_looping(&self) -> bool {
+        self.looping
     }
 
     pub fn draw(&mut self, position: Vec2, direction: &CharacterDirection) {

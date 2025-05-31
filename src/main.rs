@@ -3,10 +3,12 @@ mod arrow;
 mod character;
 mod constants;
 mod map;
+mod enemy;
 
 use crate::character::Character;
 use crate::constants::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::*;
+use crate::enemy::Enemy;
 use crate::map::create_map;
 
 fn window_conf() -> Conf {
@@ -30,7 +32,10 @@ async fn main() {
     let bow_texture = load_texture("character/3.png").await.unwrap();
     let grass_texture = load_texture("map/tiles/Tile_51.png").await.unwrap();
     let arrow_texture = load_texture("arrow.png").await.unwrap();
-
+    let enemy_idle_state = load_texture("enemy_1/Enemy3No-Move-Idle.png").await.unwrap();
+    let enemy_fly_state = load_texture("enemy_1/Enemy3No-Move-Fly.png").await.unwrap();
+    let enemy_hit_state = load_texture("enemy_1/Enemy3No-Move-Hit.png").await.unwrap();
+    let enemy_die_state = load_texture("enemy_1/Enemy3No-Move-Die.png").await.unwrap();
 
     idle_texture.set_filter(FilterMode::Nearest);
     walk_texture.set_filter(FilterMode::Nearest);
@@ -44,6 +49,8 @@ async fn main() {
     let y_offset = SCREEN_HEIGHT - (map_height as f32 * tile_size);
     let mut character = Character::new(&idle_texture, &walk_texture, &jump_texture, &arrow_texture, &attack_texture, &bow_texture);
 
+    let mut enemy = Enemy::new(&enemy_idle_state, &enemy_fly_state, &enemy_hit_state, &enemy_die_state);
+    
     loop {
         clear_background(BLACK);
 
@@ -54,8 +61,11 @@ async fn main() {
             arrow.draw();
         }
 
+        enemy.update();
+        enemy.draw();
+
         character.handle_keys();
-        check_tilemap_collision(&mut character, &tilemap, tile_size, y_offset);
+        check_tilemap_collision(&mut character, &mut enemy, &tilemap, tile_size, y_offset);
         character.update();
         draw_tilemap(&tilemap, tile_size, y_offset);
         character.draw();
@@ -65,6 +75,7 @@ async fn main() {
 
 fn check_tilemap_collision(
     character: &mut Character,
+    enemy: &mut Enemy,
     tilemap: &Vec<Vec<Option<Texture2D>>>,
     tile_size: f32,
     y_offset: f32,
@@ -88,7 +99,14 @@ fn check_tilemap_collision(
 
                 for arrow in character.arrows.iter_mut() {
                     if !arrow.stuck {
-                        if arrow.check_collision_and_embed(&tile_rect, 15.0) {
+                        if enemy.can_be_hit() && enemy.rect.overlaps(&arrow.rect) {
+                            enemy.hit();
+                            arrow.stuck_angle = arrow.velocity.y.atan2(arrow.velocity.x);
+                            arrow.velocity = vec2(0.0, 0.0);
+                            arrow.stuck = true;
+                            arrow.stuck_timer = 2.9;
+                        }
+                        else if arrow.check_collision_and_embed(&tile_rect, 15.0) {
                             arrow.stuck_angle = arrow.velocity.y.atan2(arrow.velocity.x);
                             arrow.velocity = vec2(0.0, 0.0);
                             arrow.stuck = true;
