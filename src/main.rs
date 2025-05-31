@@ -4,12 +4,14 @@ mod character;
 mod constants;
 mod map;
 mod enemy;
+mod world_camera;
 
 use crate::character::Character;
 use crate::constants::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::*;
-use crate::enemy::Enemy;
+// use crate::enemy::Enemy;
 use crate::map::create_map;
+use crate::world_camera::WorldCamera;
 
 fn window_conf() -> Conf {
     Conf {
@@ -25,7 +27,10 @@ fn window_conf() -> Conf {
 async fn main() {
     set_pc_assets_folder("src/assets");
 
-    let idle_texture = load_texture("character/Idle.png").await.unwrap();
+    let idle_texture1 = load_texture("character/idle/tile000.png").await.unwrap();
+    let idle_texture2 = load_texture("character/idle/tile001.png").await.unwrap();
+    let idle_texture3 = load_texture("character/idle/tile002.png").await.unwrap();
+    let idle_texture4 = load_texture("character/idle/tile003.png").await.unwrap();
     let walk_texture = load_texture("character/Walk.png").await.unwrap();
     let jump_texture = load_texture("character/Jump.png").await.unwrap();
     let attack_texture = load_texture("character/Attack.png").await.unwrap();
@@ -37,45 +42,62 @@ async fn main() {
     let enemy_hit_state = load_texture("enemy_1/Enemy3No-Move-Hit.png").await.unwrap();
     let enemy_die_state = load_texture("enemy_1/Enemy3No-Move-Die.png").await.unwrap();
 
-    idle_texture.set_filter(FilterMode::Nearest);
+    idle_texture1.set_filter(FilterMode::Nearest);
+    idle_texture2.set_filter(FilterMode::Nearest);
+    idle_texture3.set_filter(FilterMode::Nearest);
+    idle_texture4.set_filter(FilterMode::Nearest);
     walk_texture.set_filter(FilterMode::Nearest);
     jump_texture.set_filter(FilterMode::Nearest);
     grass_texture.set_filter(FilterMode::Nearest);
+    let idle_textures = vec![idle_texture1, idle_texture2, idle_texture3, idle_texture4];
     
     let tilemap = create_map(&grass_texture);
 
     let tile_size = grass_texture.height();
     let map_height = tilemap.len();
     let y_offset = SCREEN_HEIGHT - (map_height as f32 * tile_size);
-    let mut character = Character::new(&idle_texture, &walk_texture, &jump_texture, &arrow_texture, &attack_texture, &bow_texture);
+    let mut character = Character::new(&idle_textures);
 
-    let mut enemy = Enemy::new(&enemy_idle_state, &enemy_fly_state, &enemy_hit_state, &enemy_die_state);
-    
+    // let mut enemy = Enemy::new(&enemy_idle_state, &enemy_fly_state, &enemy_hit_state, &enemy_die_state);
+
+    let map_width = tilemap[0].len() as f32 * tile_size;
+    let map_height = tilemap.len() as f32 * tile_size;
+    let mut world_camera = WorldCamera::new(map_width, map_height);
+
     loop {
         clear_background(BLACK);
 
         let dt = get_frame_time() ;
+
+        let character_pos = Vec2::new(character.rect.center().x, character.rect.center().y);
+        world_camera.follow_target(character_pos, dt);
+
+        set_camera(&world_camera.get_camera2d());
 
         for arrow in character.arrows.iter_mut() {
             arrow.update(dt);
             arrow.draw();
         }
 
-        enemy.update();
-        enemy.draw();
+        // enemy.update();
 
         character.handle_keys();
-        check_tilemap_collision(&mut character, &mut enemy, &tilemap, tile_size, y_offset);
         character.update();
         draw_tilemap(&tilemap, tile_size, y_offset);
+
+        check_tilemap_collision(&mut character, &tilemap, tile_size, y_offset);
+        // enemy.draw();
         character.draw();
+
+        set_default_camera();
+
         next_frame().await;
     }
 }
 
 fn check_tilemap_collision(
     character: &mut Character,
-    enemy: &mut Enemy,
+    // enemy: &mut Enemy,
     tilemap: &Vec<Vec<Option<Texture2D>>>,
     tile_size: f32,
     y_offset: f32,
@@ -99,14 +121,14 @@ fn check_tilemap_collision(
 
                 for arrow in character.arrows.iter_mut() {
                     if !arrow.stuck {
-                        if enemy.can_be_hit() && enemy.rect.overlaps(&arrow.rect) {
-                            enemy.hit();
-                            arrow.stuck_angle = arrow.velocity.y.atan2(arrow.velocity.x);
-                            arrow.velocity = vec2(0.0, 0.0);
-                            arrow.stuck = true;
-                            arrow.stuck_timer = 2.9;
-                        }
-                        else if arrow.check_collision_and_embed(&tile_rect, 15.0) {
+                        // if enemy.can_be_hit() && enemy.rect.overlaps(&arrow.rect) {
+                        //     enemy.hit();
+                        //     arrow.stuck_angle = arrow.velocity.y.atan2(arrow.velocity.x);
+                        //     arrow.velocity = vec2(0.0, 0.0);
+                        //     arrow.stuck = true;
+                        //     arrow.stuck_timer = 2.9;
+                        // }
+                        if arrow.check_collision_and_embed(&tile_rect, 15.0) {
                             arrow.stuck_angle = arrow.velocity.y.atan2(arrow.velocity.x);
                             arrow.velocity = vec2(0.0, 0.0);
                             arrow.stuck = true;

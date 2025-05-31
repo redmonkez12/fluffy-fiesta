@@ -10,43 +10,44 @@ pub enum CharacterDirection {
 
 pub struct Animate {
     pub frame_size: Vec2,
-    texture: Texture2D,
-    total_frames: u8,
+    textures: Vec<Texture2D>,  // Changed: Now stores individual frame textures
     current_frame: u8,
     frame_time: f32,
     timer: f32,
     pub debug_mode: bool,
-    pub looping: bool,          // Whether animation should loop
-    finished: bool,         // Whether animation has completed
+    pub looping: bool,
+    finished: bool,
 }
 
 impl Animate {
-    pub fn new(texture: &Texture2D, total_frames: u8, frame_time: f32) -> Self {
-        let frame_width = texture.width() / total_frames as f32;
-        let frame_height = texture.height();
+    // Updated constructor for individual frame textures
+    pub fn new(textures: &Vec<Texture2D>, frame_time: f32) -> Self {
+        let frame_size = if !textures.is_empty() {
+            Vec2::new(textures[0].width(), textures[0].height())
+        } else {
+            Vec2::new(0.0, 0.0)
+        };
 
         Self {
-            texture: texture.clone(),
-            total_frames,
+            textures: textures.clone(),
             current_frame: 0,
             frame_time,
             timer: 0.0,
-            frame_size: Vec2::new(frame_width, frame_height),
+            frame_size,
             debug_mode: false,
-            looping: true,      // Default to looping
+            looping: true,
             finished: false,
         }
     }
 
-    // Create a non-looping animation (useful for hit/death animations)
-    pub fn new_once(texture: &Texture2D, total_frames: u8, frame_time: f32) -> Self {
-        let mut animate = Self::new(texture, total_frames, frame_time);
+    // Create a non-looping animation
+    pub fn new_once(textures: &Vec<Texture2D>, frame_time: f32) -> Self {
+        let mut animate = Self::new(textures, frame_time);
         animate.looping = false;
         animate
     }
 
     pub fn update(&mut self, dt: f32) {
-        // Don't update if animation is finished and not looping
         if self.finished && !self.looping {
             return;
         }
@@ -56,64 +57,58 @@ impl Animate {
             self.timer = 0.0;
             self.current_frame += 1;
 
-            if self.current_frame >= self.total_frames {
+            let total_frames = self.textures.len() as u8;
+            if self.current_frame >= total_frames {
                 if self.looping {
                     self.current_frame = 0;
                 } else {
-                    self.current_frame = self.total_frames - 1; // Stay on last frame
+                    self.current_frame = total_frames - 1;
                     self.finished = true;
                 }
             }
         }
     }
 
-    // Check if animation has completed (for non-looping animations)
     pub fn is_finished(&self) -> bool {
         self.finished
     }
 
-    // Reset animation to start
     pub fn reset(&mut self) {
         self.current_frame = 0;
         self.timer = 0.0;
         self.finished = false;
     }
 
-    // Set whether animation should loop
     pub fn set_looping(&mut self, looping: bool) {
         self.looping = looping;
         if looping {
-            self.finished = false; // Re-enable if switching back to looping
+            self.finished = false;
         }
     }
 
-    // Get current frame number
     pub fn get_current_frame(&self) -> u8 {
         self.current_frame
     }
 
-    // Get total frames
     pub fn get_total_frames(&self) -> u8 {
-        self.total_frames
+        self.textures.len() as u8
     }
 
-    // Check if animation is looping
     pub fn is_looping(&self) -> bool {
         self.looping
     }
 
     pub fn draw(&mut self, position: Vec2, direction: &CharacterDirection) {
+        if self.textures.is_empty() || self.current_frame as usize >= self.textures.len() {
+            return;
+        }
+
+        let current_texture = &self.textures[self.current_frame as usize];
+
         let flip = match direction {
             CharacterDirection::Left => -1.0,
             CharacterDirection::Right => 1.0,
         };
-
-        let rect = Rect::new(
-            self.current_frame as f32 * self.frame_size.x,
-            0.0,
-            self.frame_size.x,
-            self.frame_size.y,
-        );
 
         let draw_x = if *direction == CharacterDirection::Left {
             position.x + self.frame_size.x
@@ -122,12 +117,11 @@ impl Animate {
         };
 
         draw_texture_ex(
-            &self.texture,
+            current_texture,
             draw_x,
             position.y,
             WHITE,
             DrawTextureParams {
-                source: Some(rect),
                 dest_size: Some(Vec2::new(self.frame_size.x * flip, self.frame_size.y)),
                 ..Default::default()
             },
@@ -139,6 +133,12 @@ impl Animate {
     }
 
     pub fn draw_rotated(&self, position: Vec2, direction: &CharacterDirection, angle: f32) {
+        if self.textures.is_empty() || self.current_frame as usize >= self.textures.len() {
+            return;
+        }
+
+        let current_texture = &self.textures[self.current_frame as usize];
+
         let flip_x = match direction {
             CharacterDirection::Left => true,
             CharacterDirection::Right => false,
@@ -150,12 +150,11 @@ impl Animate {
         );
 
         draw_texture_ex(
-            &self.texture,
+            current_texture,
             draw_position.x,
             draw_position.y,
             WHITE,
             DrawTextureParams {
-                source: Some(self.get_current_frame_rect()),
                 dest_size: Some(self.frame_size),
                 flip_y: flip_x,
                 rotation: angle,
@@ -167,15 +166,6 @@ impl Animate {
         if self.debug_mode {
             self.draw_debug_rectangles_rotated(position, draw_position, angle);
         }
-    }
-
-    fn get_current_frame_rect(&self) -> Rect {
-        Rect::new(
-            self.current_frame as f32 * self.frame_size.x,
-            0.0,
-            self.frame_size.x,
-            self.frame_size.y,
-        )
     }
 
     fn draw_debug_rectangles(&self, position: Vec2, direction: &CharacterDirection, draw_x: f32) {
